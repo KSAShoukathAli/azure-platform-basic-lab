@@ -34,3 +34,14 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "replication_type" {
+  description = "Storage replication: LRS for cheap, ZRS to survive a zone outage"
+  type        = string
+  default     = "LRS"
+
+  validation {
+    condition     = contains(["LRS", "ZRS", "GRS"], var.replication_type)
+    error_message = "replication_type must be LRS, ZRS or GRS."
+  }
+}
