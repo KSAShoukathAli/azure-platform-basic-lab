@@ -1,10 +1,5 @@
 resource "azurerm_resource_group" "main" {
-  name     = "rg-basiclab-ksa"
-  location = "canadacentral"
-
-  tags = {
-    managed_by = "terraform"
-    lab        = "azure-platform-basic-lab"
-    owner      = "shoukat"
-  }
+  name     = local.resource_group_name
+  location = var.location
+  tags     = local.common_tags
 }
