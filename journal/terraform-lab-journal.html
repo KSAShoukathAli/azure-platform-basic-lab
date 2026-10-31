@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terraform Lab Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --text: #1f2933;
+  --muted: #5b6770;
+  --line: #e3e0d8;
+  --teal: #0f766e;
+  --teal-soft: #e6f4f2;
+  --amber: #b45309;
+  --amber-soft: #fdf3e3;
+  --red: #b42318;
+  --red-soft: #fdecea;
+  --code-bg: #f3f1ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161a;
+    --surface: #1a2026;
+    --text: #e4e7eb;
+    --muted: #9aa5b1;
+    --line: #2c353d;
+    --teal: #5eead4;
+    --teal-soft: #13312e;
+    --amber: #fbbf24;
+    --amber-soft: #33270f;
+    --red: #f87171;
+    --red-soft: #3a1a1a;
+    --code-bg: #0f1418;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161a; --surface: #1a2026; --text: #e4e7eb; --muted: #9aa5b1; --line: #2c353d;
+  --teal: #5eead4; --teal-soft: #13312e; --amber: #fbbf24; --amber-soft: #33270f;
+  --red: #f87171; --red-soft: #3a1a1a; --code-bg: #0f1418;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.65 "IBM Plex Sans", system-ui, sans-serif;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding: 32px 16px 80px; }
+h1, h2, h3 { font-family: "IBM Plex Serif", Georgia, serif; line-height: 1.25; }
+h1 { font-size: 2.1rem; margin: 0 0 4px; }
+h2 { font-size: 1.55rem; margin: 48px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.15rem; margin: 28px 0 8px; color: var(--teal); }
+.sub { color: var(--muted); margin: 0 0 24px; }
+.chapter-head { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--teal);
+  border-radius: 8px; padding: 16px 20px; margin: 28px 0; }
+.chapter-head h2 { border: 0; margin: 0 0 4px; padding: 0; }
+.chapter-head p { margin: 0; color: var(--muted); }
+.story { font-size: 1.05rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 22px; }
+.callout { border-radius: 8px; padding: 12px 16px; margin: 16px 0; border: 1px solid var(--line); }
+.callout.why { background: var(--teal-soft); border-color: var(--teal); }
+.callout.warn { background: var(--amber-soft); border-color: var(--amber); }
+.callout.bad { background: var(--red-soft); border-color: var(--red); }
+.callout strong:first-child { display: block; margin-bottom: 4px; }
+code, pre { font-family: "IBM Plex Mono", Consolas, monospace; font-size: 0.88rem; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.94rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+.table-scroll { overflow-x: auto; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 20px 14px; margin: 18px 0; }
+.step h3 { margin-top: 16px; }
+.label { display: inline-block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted); margin-right: 6px; }
+.toc { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 20px; }
+.toc ol { margin: 6px 0; padding-left: 20px; }
+a { color: var(--teal); }
+svg text { font-family: "IBM Plex Sans", sans-serif; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 16px 0; }
+.qa dt { font-weight: 600; margin-top: 16px; }
+.qa dd { margin: 4px 0 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Terraform Lab Journal</h1>
+<p class="sub">Repo: <code>azure-platform-basic-lab</code> - learning Terraform on Azure step by step, alongside <em>Terraform: Up and Running</em> (3rd ed.). One chapter per session. Each chapter records what we did, what we saw, and why Terraform behaved that way.</p>
+
+<div class="toc">
+<strong>Chapters</strong>
+<ol>
+<li><a href="#ch1">Oct 30 2026 - Foundations: state, drift, import, variables, locals, modules, environments</a></li>
+</ol>
+</div>
+
+<!-- ===================================================== CHAPTER 1 -->
+<section id="ch1">
+<div class="chapter-head">
+<h2>Chapter 1 - Foundations</h2>
+<p>Friday, Oct 30 2026, evening session. Steps 1 to 7.</p>
+</div>
+
+<div class="story">
+<p>Late in the session we moved two working resources into a module. Nothing about them changed. Same names, same settings, same resource group. Just a code reorganization.</p>
+<p>Terraform's plan said: <code>Plan: 2 to add, 0 to change, 2 to destroy.</code></p>
+<p>It wanted to delete the storage account and create a new, empty one. For a refactor. If we had typed <code>yes</code>, a real team would have lost data on a Friday night and spent the weekend explaining it.</p>
+<p>Two small <code>moved</code> blocks later, the same plan read <code>0 to add, 0 to change, 0 to destroy</code>. Everything in this chapter leads up to understanding why both of those plans were correct.</p>
+</div>
+
+<h3>Session at a glance</h3>
+<div class="table-scroll">
+<table>
+<tr><th>Step</th><th>What we did</th><th>The lesson</th></tr>
+<tr><td>1</td><td>Created state storage with az CLI</td><td>Chicken-and-egg: Terraform can't store state in something it hasn't created yet</td></tr>
+<tr><td>2</td><td>Smallest config: one resource group, remote backend</td><td>The init / plan / apply loop; state lives in a blob, not on the laptop</td></tr>
+<tr><td>3</td><td>Changed a tag, caused drift, tried a region change, imported a resource</td><td>How to read a plan; code wins; import is the brownfield tool</td></tr>
+<tr><td>4</td><td>Moved hardcoded values into variables</td><td>Refactor proof: same values must give <code>No changes</code></td></tr>
+<tr><td>5</td><td>Built names and tags with locals</td><td>Variables are what a person chooses; locals are what the code works out</td></tr>
+<tr><td>6</td><td>Moved resources into a module</td><td>Addresses change; <code>moved</code> blocks stop a destroy-and-recreate</td></tr>
+<tr><td>7</td><td>Retired lab env, created dev and test</td><td>Isolation by folder and by state key</td></tr>
+</table>
+</div>
+
+<h3>Where things ended up</h3>
+<pre><code>azure-platform-basic-lab/
+  .gitignore
+  .gitattributes
+  journal/
+    terraform-lab-journal.html      this file
+  modules/
+    app-foundation/                 the library: RG + storage account, naming, tags
+      versions.tf  variables.tf  locals.tf  main.tf  outputs.tf
+  envs/
+    dev/                            thin root, state key dev.tfstate, LRS
+      versions.tf  providers.tf  backend.tf  main.tf  outputs.tf  .terraform.lock.hcl
+    test/                           thin root, state key test.tfstate, ZRS
+      (same five files + lock file)</code></pre>
+
+<div class="table-scroll">
+<table>
+<tr><th>Azure resource</th><th>Created by</th><th>Purpose</th></tr>
+<tr><td><code>rg-tfstate-ksa</code> / <code>sttfstateksa01</code> / container <code>tfstate</code></td><td>az CLI, once</td><td>Holds every state file. Versioning + 7-day soft delete on.</td></tr>
+<tr><td><code>rg-basiclab-dev-ksa</code> / <code>stbasiclabdevksa01</code></td><td>Terraform, <code>envs/dev</code></td><td>Dev environment</td></tr>
+<tr><td><code>rg-basiclab-test-ksa</code> / <code>stbasiclabtestksa01</code></td><td>Terraform, <code>envs/test</code></td><td>Test environment</td></tr>
+</table>
+</div>
+
+<h3>The mental model that made everything click</h3>
+<p>Every <code>plan</code> does the same three things, in this order. Once this landed, drift, import, <code>state rm</code> and the "already exists" error all stopped being separate topics.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 760 300" width="100%" role="img" aria-label="Terraform plan: read state, refresh from Azure, compare">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+  <rect x="20" y="30" width="200" height="80" rx="8" fill="var(--surface)" stroke="var(--teal)" stroke-width="2"/>
+  <text x="120" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">1. Read state</text>
+  <text x="120" y="86" text-anchor="middle" font-size="12.5" fill="var(--muted)">list of addresses + Azure IDs</text>
+
+  <rect x="280" y="30" width="200" height="80" rx="8" fill="var(--surface)" stroke="var(--teal)" stroke-width="2"/>
+  <text x="380" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">2. Refresh</text>
+  <text x="380" y="86" text-anchor="middle" font-size="12.5" fill="var(--muted)">ask Azure about those IDs only</text>
+
+  <rect x="540" y="30" width="200" height="80" rx="8" fill="var(--surface)" stroke="var(--amber)" stroke-width="2"/>
+  <text x="640" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">3. Compare</text>
+  <text x="640" y="86" text-anchor="middle" font-size="12.5" fill="var(--muted)">refreshed Azure vs ...</text>
+
+  <line x1="220" y1="70" x2="276" y2="70" stroke="var(--muted)" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="480" y1="70" x2="536" y2="70" stroke="var(--muted)" stroke-width="2" marker-end="url(#arr)"/>
+
+  <line x1="600" y1="110" x2="470" y2="170" stroke="var(--muted)" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="680" y1="110" x2="680" y2="170" stroke="var(--muted)" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="300" y="174" width="250" height="96" rx="8" fill="var(--teal-soft)" stroke="var(--teal)"/>
+  <text x="425" y="202" text-anchor="middle" font-size="14" font-weight="600" fill="var(--text)">terraform plan</text>
+  <text x="425" y="226" text-anchor="middle" font-size="12.5" fill="var(--text)">compare against CODE</text>
+  <text x="425" y="248" text-anchor="middle" font-size="12.5" fill="var(--muted)">apply fixes AZURE</text>
+
+  <rect x="570" y="174" width="180" height="96" rx="8" fill="var(--amber-soft)" stroke="var(--amber)"/>
+  <text x="660" y="202" text-anchor="middle" font-size="14" font-weight="600" fill="var(--text)">-refresh-only</text>
+  <text x="660" y="226" text-anchor="middle" font-size="12.5" fill="var(--text)">compare against OLD STATE</text>
+  <text x="660" y="248" text-anchor="middle" font-size="12.5" fill="var(--muted)">apply fixes STATE</text>
+
+  <text x="20" y="160" font-size="13" font-weight="600" fill="var(--red)">Not in state?</text>
+  <text x="20" y="180" font-size="12.5" fill="var(--text)">No ID, so step 2 never</text>
+  <text x="20" y="198" font-size="12.5" fill="var(--text)">asks Azure about it.</text>
+  <text x="20" y="216" font-size="12.5" fill="var(--text)">Invisible until imported.</text>
+</svg>
+</div>
+
+<div class="callout why"><strong>The corollary</strong>Terraform does check Azure on every plan, but only for resources already in its state. Anything outside state is invisible. That is the root of the import lesson and the module-move lesson.</div>
+
+<!-- ---------------- STEP 1 -->
+<div class="step">
+<h3>Step 1 - State storage with az CLI</h3>
+<p><span class="label">Did</span>Created <code>rg-tfstate-ksa</code>, storage account <code>sttfstateksa01</code> (TLS 1.2, no public blob access), turned on blob versioning and 7-day soft delete, created the <code>tfstate</code> container with <code>az storage container-rm create</code>, and gave myself <strong>Storage Blob Data Contributor</strong> on the account.</p>
+<p><span class="label">Saw</span>Running <code>az storage account create</code> a second time said "found, will continue to update the existing account." Nothing broke.</p>
+<p><span class="label">Why</span>Terraform needs somewhere to write state before it can create anything. If Terraform had to create its own state storage, it would need the storage to start and would need to start to create the storage. That's the chicken-and-egg. We solved it by creating the storage outside Terraform. The book solves it differently: create the bucket with local state first, then add the backend and let <code>terraform init</code> copy the local state into it.</p>
+<div class="table-scroll">
+<table>
+<tr><th></th><th>Book's way</th><th>Our way</th></tr>
+<tr><td>Who creates state storage</td><td>Terraform (two steps, state migration)</td><td>az CLI (one step)</td></tr>
+<tr><td>Is it in Terraform state?</td><td>Yes</td><td>No - Terraform only points at it</td></tr>
+<tr><td>Risk</td><td>A careless destroy can delete the storage holding the state</td><td>Terraform can't delete what it doesn't know about</td></tr>
+</table>
+</div>
+<div class="callout why"><strong>Why the data role</strong>Owner or Contributor lets you manage the storage account (management plane). Reading the blob with Entra login (<code>use_azuread_auth = true</code>) is the data plane, which needs Storage Blob Data Contributor. In a pipeline, the same role goes to the pipeline's app registration, scoped to the <code>tfstate</code> container, plus Contributor where it deploys.</div>
+</div>
+
+<!-- ---------------- STEP 2 -->
+<div class="step">
+<h3>Step 2 - The smallest config, with remote state</h3>
+<p><span class="label">Did</span>One resource group in <code>main.tf</code>, a <code>terraform {}</code> block with the provider version and backend, and <code>provider "azurerm" { features {} }</code>. Subscription from <code>$env:ARM_SUBSCRIPTION_ID</code>. Then <code>init</code>, <code>plan</code>, <code>apply</code>. Later split the backend into its own <code>backend.tf</code>.</p>
+<p><span class="label">Saw</span><code>Installed hashicorp/azurerm v5.12.0</code>. <code>Acquiring state lock</code> / <code>Releasing state lock</code> on every plan and apply. No <code>terraform.tfstate</code> in the folder; the blob <code>azure-platform-basic-lab/infra.tfstate</code> in the container instead.</p>
+<p><span class="label">Why</span><code>~&gt; 5.0</code> picked the newest 5.x, and <code>.terraform.lock.hcl</code> pins exactly 5.12.0 so every machine and pipeline uses the same build. The lock messages are the blob lease: while one person runs, nobody else can write that state.</p>
+<div class="table-scroll">
+<table>
+<tr><th>Piece</th><th>.NET equivalent</th><th>Job</th></tr>
+<tr><td><code>required_providers</code></td><td><code>PackageReference</code> in .csproj</td><td>Which plugin, which version</td></tr>
+<tr><td><code>provider "azurerm" {}</code></td><td><code>AddServiceBusClient(...)</code> in Program.cs</td><td>How it's configured at runtime: subscription, features, aliases</td></tr>
+<tr><td><code>backend</code></td><td>A connection string to storage someone else built</td><td>Where state lives. Terraform uses it, never manages it</td></tr>
+</table>
+</div>
+<div class="callout warn"><strong>File names don't matter to Terraform</strong>It loads every <code>.tf</code> file in the folder and merges them. The split (<code>versions.tf</code>, <code>backend.tf</code>, <code>providers.tf</code>, <code>main.tf</code>...) is for humans. Backend gets its own file because reusable modules have <code>versions.tf</code> but must never have a backend or provider block.</div>
+<div class="callout warn"><strong>No variables in the backend block</strong>The backend is connected during <code>init</code>, before variables exist. Values are typed in directly or passed with <code>-backend-config</code>.</div>
+</div>
+
+<!-- ---------------- STEP 3 -->
+<div class="step">
+<h3>Step 3 - Change, drift, replace, import</h3>
+<p><span class="label">3b change</span>Added an <code>owner</code> tag. Plan showed <code>~ update in-place</code>. Used <code>terraform plan -out tfplan</code> then <code>terraform apply tfplan</code>: no prompt, because you're applying exactly what you reviewed. Pipelines always do this.</p>
+<p><span class="label">3c drift</span>Added a <code>costcenter</code> tag with az CLI. <code>terraform plan</code> wanted to remove it. Code wins. <code>terraform plan -refresh-only</code> showed it under "Objects have changed outside of Terraform" and proposed no Azure change.</p>
+<p><span class="label">3d replace</span>Changed the region to <code>eastus</code>. Plan showed <code>-/+</code> with <code># forces replacement</code>. Not applied. A resource group can't move regions.</p>
+<p><span class="label">3e import</span>Created <code>stbasiclabksa01</code> with az CLI. Plan said <code>No changes</code> - Terraform couldn't see it. Wrote the resource block plus an <code>import</code> block with the Azure ID. Plan: <code>1 to import, 0 to add, 1 to change</code>. The one change was <code>+ public_network_access = "Enabled"</code>: az CLI never set that newer property, and the provider fills in its default. Behavior unchanged. Applied, then deleted <code>import.tf</code>.</p>
+
+<div class="table-scroll">
+<table>
+<tr><th>Symbol</th><th>Meaning</th><th>Risk</th></tr>
+<tr><td><code>+</code></td><td>create</td><td>low</td></tr>
+<tr><td><code>~</code></td><td>update in place</td><td>low to medium - read what changes</td></tr>
+<tr><td><code>-/+</code></td><td>destroy then recreate</td><td>high - look for <code># forces replacement</code></td></tr>
+<tr><td><code>-</code></td><td>destroy</td><td>high</td></tr>
+</table>
+</div>
+
+<div class="callout why"><strong>plan vs plan -refresh-only</strong>Both refresh from Azure. Plan compares against code and apply fixes Azure. Refresh-only compares against the old state and apply fixes state only. Refresh-only never accepts drift - only changing the code does. Use <code>plan -refresh-only</code> often to look; <code>apply -refresh-only</code> rarely, when you need state updated but changing Azure right now would be wrong (investigating a deletion, or another stack reading your outputs).</div>
+
+<div class="callout why"><strong>ignore_changes</strong>When something else legitimately owns a value - autoscale instance count, tags added by Azure Policy - put it in <code>lifecycle { ignore_changes = [...] }</code>. Terraform stops comparing that attribute, and normal applies keep state accurate. No refresh-only needed. Catch: it also ignores your own code changes to that value.</div>
+
+<div class="callout bad"><strong>Import vs "just add the code"</strong>Without import, code has the resource and state doesn't, so plan shows <code>+ create</code>. On apply, azurerm checks first and fails with "A resource with the ID ... already exists - to be managed via Terraform this resource needs to be imported into the State." Reproduced it with <code>terraform state rm</code> (removes from state only, Azure untouched), then fixed it with the CLI form <code>terraform import</code>. The <code>import</code> block is preferred: it shows in plan and goes through review.</div>
+</div>
+
+<!-- ---------------- STEP 4 -->
+<div class="step">
+<h3>Step 4 - Variables</h3>
+<p><span class="label">Did</span>Moved name, region and tags into <code>variables.tf</code> with types, defaults and a validation rule. Values in <code>terraform.tfvars</code>.</p>
+<p><span class="label">Saw</span><code>No changes</code> after the refactor. A bad storage name failed with my own error message. <code>TF_VAR_resource_group_name</code> lost to tfvars; <code>TF_VAR_location</code> beat the default and planned replacement of both resources. Removing tfvars with <code>-input=false</code> gave "No value for required variable".</p>
+<p><span class="label">Why</span>The storage account was replaced too, even though only the region variable changed, because its location came from <code>azurerm_resource_group.main.location</code>. References carry changes through the dependency graph.</p>
+<div class="table-scroll">
+<table>
+<tr><th>Priority</th><th>Source</th></tr>
+<tr><td>1 (wins)</td><td><code>-var</code> / <code>-var-file</code> on the command line</td></tr>
+<tr><td>2</td><td><code>*.auto.tfvars</code></td></tr>
+<tr><td>3</td><td><code>terraform.tfvars</code></td></tr>
+<tr><td>4</td><td><code>TF_VAR_name</code> environment variable</td></tr>
+<tr><td>5</td><td><code>default</code></td></tr>
+<tr><td>-</td><td>Nothing: Terraform prompts. Pipelines use <code>-input=false</code> so they fail instead of hanging.</td></tr>
+</table>
+</div>
+<div class="callout warn"><strong>Leftover TF_VAR_</strong>A stray environment variable from another project can silently change a plan. Always read the plan.</div>
+</div>
+
+<!-- ---------------- STEP 5 -->
+<div class="step">
+<h3>Step 5 - Locals</h3>
+<p><span class="label">Did</span>Replaced the two name variables with <code>app_name</code>, <code>environment</code>, <code>name_suffix</code>. Built names and <code>common_tags</code> in <code>locals.tf</code> using interpolation and <code>merge()</code>. Moved the storage name rule into a <code>lifecycle { precondition }</code>, since locals can't have validation. Added outputs.</p>
+<p><span class="label">Saw</span><code>terraform console</code> showed the built names matched exactly, so the plan had only <code>~</code> tag updates. Apply ran in dependency order: resource group, then storage account. <code>-var="app_name=orders"</code> renamed everything at once and forced replacement.</p>
+<div class="callout why"><strong>The rule</strong>If a person should choose it, variable. If it can be calculated, local. Variable = method parameter. Local = local variable inside the method, never settable from outside.</div>
+</div>
+
+<!-- ---------------- STEP 6 -->
+<div class="step">
+<h3>Step 6 - Into a module, without destroying anything</h3>
+<p><span class="label">Did</span>Created <code>modules/app-foundation</code> (versions, variables, locals, main, outputs - no provider, no backend). The root became one <code>module "foundation"</code> call, with outputs passed through. Ran <code>init</code> to register the module.</p>
+<p><span class="label">Saw</span>Without <code>moved</code>: <code>2 to add, 2 to destroy</code> - "because azurerm_resource_group.main is not in configuration". With <code>moved.tf</code>: "has moved to module.foundation...", <code>0 to add, 0 to change, 0 to destroy</code>. After apply, <code>state list</code> showed the new addresses. The storage account still had its original creation time, 00:40 UTC, from the az CLI step.</p>
+<p><span class="label">Why</span>Moving code into a module changes the address: <code>azurerm_storage_account.data</code> becomes <code>module.foundation.azurerm_storage_account.data</code>. State holds the old address, code holds the new one, and Terraform can't know they're the same thing. <code>moved</code> renames the entry in state. Azure is never touched. Note the refresh lines already showed the new addresses: moved blocks are applied to state in memory before refresh.</p>
+<div class="table-scroll">
+<table>
+<tr><th>File</th><th>Root (the program)</th><th>Module (the library)</th></tr>
+<tr><td><code>variables.tf</code></td><td>What I pass in</td><td>The function's parameters</td></tr>
+<tr><td><code>main.tf</code></td><td>Calls the function</td><td>The function body</td></tr>
+<tr><td><code>outputs.tf</code></td><td>Printed to me after apply</td><td>Return values</td></tr>
+<tr><td><code>backend.tf</code>, <code>providers.tf</code></td><td>Yes</td><td>Never</td></tr>
+</table>
+</div>
+</div>
+
+<!-- ---------------- STEP 7 -->
+<div class="step">
+<h3>Step 7 - Dev and test</h3>
+<p><span class="label">Found</span>A bug in the module: names didn't include the environment, so dev and test would both produce <code>rg-basiclab-ksa</code>. Typical - a module works with one caller and breaks with two.</p>
+<p><span class="label">Did</span><code>terraform plan -destroy</code> then <code>terraform destroy</code> on the lab env (storage first, then RG - reverse dependency order). Deleted <code>infra/</code> and its state blob (recoverable 7 days thanks to soft delete). Fixed naming to <code>rg-basiclab-{env}-ksa</code> / <code>stbasiclab{env}ksa01</code>, added a <code>replication_type</code> input. Created <code>envs/dev</code> (LRS) and <code>envs/test</code> (ZRS), each with its own backend key.</p>
+<p><span class="label">Saw</span>Test's first plan said <code>2 to add</code> even though dev already existed - its own state was empty. Added a tag in dev: dev planned <code>2 to change</code>, test said <code>No changes</code>. Two blobs: <code>dev.tfstate</code> and <code>test.tfstate</code>.</p>
+<div class="callout warn"><strong>The backend key is the wall between environments</strong>Same container, different blob. Copy dev's backend into a new environment and forget to change the key, and the new environment reads dev's state.</div>
+</div>
+
+<h3>Questions that came up</h3>
+<dl class="qa">
+<dt>What changes when this runs from GitHub Actions?</dt>
+<dd>No <code>az login</code> user. The workflow logs in as an app registration via OIDC (federated credential tied to repo + branch, no secret). That identity needs Storage Blob Data Contributor on the state container and Contributor where it deploys (plus RBAC Administrator if Terraform creates role assignments).</dd>
+<dt>Are the client, tenant and subscription IDs secrets?</dt>
+<dd>No. They're identifiers, like a username with no password. They go in GitHub <code>vars</code>. The proof of identity is the short-lived OIDC token. The workflow maps them to <code>ARM_CLIENT_ID</code>, <code>ARM_TENANT_ID</code>, <code>ARM_SUBSCRIPTION_ID</code>, <code>ARM_USE_OIDC=true</code> for Terraform.</dd>
+<dt>Why both required_providers and a provider block?</dt>
+<dd>One downloads the plugin, the other configures it. One plugin can have many provider configurations (aliases), for example app subscription and shared DNS subscription.</dd>
+<dt>Does terraform init read the subscription?</dt>
+<dd>No. Init connects the backend and downloads providers. The provider reads the subscription during plan and apply.</dd>
+<dt>How does this look with separate subscriptions per environment?</dt>
+<dd>Dev and QA often share a non-prod subscription; staging and prod get their own. Per environment: different subscription, different pipeline identity (only allowed into its own subscription), and prod state in its own restricted storage. With folder-per-env, pin <code>subscription_id</code> in each env's <code>providers.tf</code> so a leftover shell variable can never send a dev apply into prod. The backend has its own <code>subscription_id</code>, so state can live in a management subscription.</dd>
+</dl>
+
+<h3>Mistakes and fixes</h3>
+<div class="callout bad"><strong>Plan files committed to a public repo</strong><code>.gitignore</code> had <code>*.tfplan</code>, but the files were named <code>tfplan</code> with no extension, so nothing matched. <code>infra/tfplan</code> went in during steps 4-5, and <code>envs/dev/tfplan</code>, <code>envs/test/tfplan</code> in step 7. A saved plan contains a prior-state snapshot, which can include storage keys. Fix: added <code>tfplan</code> to <code>.gitignore</code>, <code>git rm --cached</code>, and rotated dev and test storage keys. The lab account whose keys could be in history was already destroyed. Rule: if a secret might be exposed, rotate first, then decide about history.</div>
+<div class="callout warn"><strong>CRLF warnings</strong>Windows Git converting line endings. Added <code>.gitattributes</code> with <code>* text=auto eol=lf</code>, since Actions runners are Linux.</div>
+
+<h3>Commands worth keeping</h3>
+<pre><code>terraform init                          # backend + providers + modules
+terraform validate
+terraform plan -out tfplan              # review this
+terraform apply tfplan                  # apply exactly that, no prompt
+terraform plan -refresh-only            # what drifted, without fixing
+terraform plan -destroy                 # preview a destroy
+terraform state list
+terraform state rm ADDRESS              # forget it, Azure untouched
+terraform import ADDRESS AZURE_ID       # CLI import (prefer import block)
+terraform output
+"local.common_tags" | terraform console # evaluate any expression
+terraform plan -no-color | Select-String '^\s+[+~-] '   # only changed lines</code></pre>
+
+<h3>Next session</h3>
+<ul>
+<li>GitHub Actions: plan on pull request, apply after merge, dev first then test</li>
+<li>OIDC: app registration, federated credential, roles on state container and deploy scope</li>
+<li>GitHub Environments with per-env variables; decide env var vs pinned <code>subscription_id</code></li>
+<li><code>-input=false</code>, plan artifact, and keeping plan files out of logs and commits</li>
+</ul>
+
+<h3>Seeds for the playbook and recipes</h3>
+<ul>
+<li>Recipe: bootstrap remote state on Azure (az CLI, versioning, soft delete, data role)</li>
+<li>Recipe: import an existing Azure resource and get the plan to zero changes</li>
+<li>Recipe: refactor into a module with <code>moved</code> blocks</li>
+<li>Recipe: add a new environment (folder, backend key, values)</li>
+<li>Playbook: someone changed it in the portal - drift triage</li>
+<li>Playbook: reading a plan before you type yes</li>
+<li>Playbook: a secret landed in Git</li>
+</ul>
+</section>
+
+</div>
+</body>
+</html>
