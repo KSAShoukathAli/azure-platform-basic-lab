@@ -82,6 +82,9 @@ svg text { font-family: "IBM Plex Sans", sans-serif; }
 .diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 16px 0; }
 .qa dt { font-weight: 600; margin-top: 16px; }
 .qa dd { margin: 4px 0 0 0; }
+details.raw { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px; margin: 12px 0; }
+details.raw summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+details.raw[open] summary { margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -129,6 +132,8 @@ svg text { font-family: "IBM Plex Sans", sans-serif; }
 <pre><code>azure-platform-basic-lab/
   .gitignore
   .gitattributes
+  bootstrap/
+    bootstrap-state.ps1             az CLI, run once: state storage (step 1)
   journal/
     terraform-lab-journal.html      this file
   modules/
@@ -360,6 +365,249 @@ terraform plan -no-color | Select-String '^\s+[+~-] '   # only changed lines</co
 <li>Playbook: reading a plan before you type yes</li>
 <li>Playbook: a secret landed in Git</li>
 </ul>
+
+<h3 id="ch1-appendix">Appendix - Raw material for recipes</h3>
+<p>Exact commands, the code that mattered, and the output line that proves it worked. Collapsed so the chapter stays readable. Open a block when you sit down to write a recipe or playbook. The final code is in the repo; the intermediate versions are in the per-step commits.</p>
+
+<details class="raw">
+<summary>A1 - Bootstrap remote state (step 1)</summary>
+<p>Now a script in the repo: <code>bootstrap/bootstrap-state.ps1</code>. Run once per subscription after <code>az login</code>.</p>
+<pre><code>powershell -ExecutionPolicy Bypass -File .\bootstrap\bootstrap-state.ps1
+
+# verify
+az resource list --resource-group rg-tfstate-ksa -o table
+# expect: sttfstateksa01  Microsoft.Storage/storageAccounts  Succeeded</code></pre>
+<p>Re-running <code>az storage account create</code> prints "found, will continue to update the existing account" - safe.</p>
+</details>
+
+<details class="raw">
+<summary>A2 - Smallest config with a remote backend (step 2)</summary>
+<pre><code># versions.tf
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    azurerm = { source = "hashicorp/azurerm", version = "~> 5.0" }
+  }
+}
+
+# backend.tf - no variables allowed here
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-tfstate-ksa"
+    storage_account_name = "sttfstateksa01"
+    container_name       = "tfstate"
+    key                  = "azure-platform-basic-lab/infra.tfstate"
+    use_azuread_auth     = true
+  }
+}
+
+# providers.tf
+provider "azurerm" {
+  features {}
+}
+
+# main.tf
+resource "azurerm_resource_group" "main" {
+  name     = "rg-basiclab-ksa"
+  location = "canadacentral"
+  tags     = { managed_by = "terraform", lab = "azure-platform-basic-lab" }
+}</code></pre>
+<pre><code>$env:ARM_SUBSCRIPTION_ID = az account show --query id -o tsv
+terraform init        # expect: Successfully configured the backend "azurerm"!
+terraform plan        # expect: Plan: 1 to add, 0 to change, 0 to destroy.
+terraform apply       # expect: Apply complete! Resources: 1 added
+az storage blob list --account-name sttfstateksa01 --container-name tfstate --auth-mode login --query "[].name" -o tsv
+# expect: azure-platform-basic-lab/infra.tfstate   (and no terraform.tfstate in the folder)
+terraform state list  # expect: azurerm_resource_group.main</code></pre>
+<p>403 on init = the data role from A1 hasn't propagated. Wait 2 minutes.</p>
+</details>
+
+<details class="raw">
+<summary>A3 - Saved plan, drift, and the dangerous change (steps 3a-3d)</summary>
+<pre><code># saved plan: review once, apply exactly that
+terraform plan -out tfplan       # expect: ~ update in-place ... 1 to change
+terraform apply tfplan           # no prompt
+
+# drift: change Azure behind Terraform's back
+az group update --name rg-basiclab-ksa --set tags.costcenter=portal-edit -o none
+terraform plan                   # expect: - "costcenter" = "portal-edit" -> null   (code wins)
+terraform plan -refresh-only     # expect: "Objects have changed outside of Terraform", no Azure change
+terraform apply                  # removes the tag
+
+# dangerous change: do not apply
+(Get-Content main.tf) -replace '"canadacentral"', '"eastus"' | Set-Content -Encoding ascii main.tf
+terraform plan                   # expect: -/+ ... location ... # forces replacement
+(Get-Content main.tf) -replace '"eastus"', '"canadacentral"' | Set-Content -Encoding ascii main.tf
+
+# only the changed lines of a long plan
+terraform plan -no-color | Select-String '^\s+[+~-] '</code></pre>
+</details>
+
+<details class="raw">
+<summary>A4 - Import an existing resource (step 3e)</summary>
+<pre><code># 1. something created outside Terraform
+az storage account create --name stbasiclabksa01 --resource-group rg-basiclab-ksa `
+  --location canadacentral --sku Standard_LRS --kind StorageV2 `
+  --min-tls-version TLS1_2 --allow-blob-public-access false -o table
+terraform plan                   # expect: No changes - Terraform can't see it
+
+# 2. storage.tf - written as if Terraform had created it
+resource "azurerm_storage_account" "data" {
+  name                            = "stbasiclabksa01"
+  resource_group_name             = azurerm_resource_group.main.name
+  location                        = azurerm_resource_group.main.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
+}
+
+# 3. import.tf - links that code to the real Azure ID
+$saId = az storage account show --name stbasiclabksa01 --resource-group rg-basiclab-ksa --query id -o tsv
+import {
+  to = azurerm_storage_account.data
+  id = "/subscriptions/.../resourceGroups/rg-basiclab-ksa/providers/Microsoft.Storage/storageAccounts/stbasiclabksa01"
+}
+
+terraform plan     # got: Plan: 1 to import, 0 to add, 1 to change
+                   # the 1 change: + public_network_access = "Enabled" (provider default, behavior unchanged)
+terraform apply    # expect: 1 imported
+Remove-Item import.tf
+terraform plan     # expect: No changes.</code></pre>
+<p><strong>Without import</strong> (reproduced with <code>state rm</code>):</p>
+<pre><code>terraform state rm azurerm_storage_account.data   # forget it; Azure untouched
+terraform plan                                    # expect: Plan: 1 to add
+terraform apply                                   # expect error: "A resource with the ID ... already exists -
+                                                  #  to be managed via Terraform this resource needs to be imported"
+terraform import azurerm_storage_account.data $saId   # CLI form; writes state immediately, no preview
+terraform plan                                    # expect: No changes.</code></pre>
+<p>For big resources: <code>terraform plan -generate-config-out=generated.tf</code> writes the resource block for you (needs cleanup).</p>
+</details>
+
+<details class="raw">
+<summary>A5 - Variables (step 4)</summary>
+<pre><code>variable "storage_account_name" {
+  description = "Globally unique storage account name"
+  type        = string
+  validation {
+    condition     = can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
+    error_message = "Storage account name must be 3-24 lowercase letters or digits."
+  }
+}</code></pre>
+<pre><code>terraform plan                                   # after refactor, expect: No changes.  (the safety check)
+terraform plan -var="storage_account_name=St_Basic-Lab"   # expect: Invalid value for variable + my message
+$env:TF_VAR_resource_group_name = "rg-should-not-win"; terraform plan   # tfvars wins: No changes
+$env:TF_VAR_location = "eastus"; terraform plan                         # env beats default: forces replacement
+Remove-Item Env:TF_VAR_resource_group_name, Env:TF_VAR_location
+Rename-Item terraform.tfvars terraform.tfvars.off
+terraform plan -input=false                      # expect: No value for required variable
+Rename-Item terraform.tfvars.off terraform.tfvars</code></pre>
+</details>
+
+<details class="raw">
+<summary>A6 - Locals (step 5)</summary>
+<pre><code>locals {
+  resource_group_name  = "rg-${var.app_name}-${var.environment}-${var.name_suffix}"
+  storage_account_name = lower(replace("st${var.app_name}${var.environment}${var.name_suffix}01", "-", ""))
+  common_tags = merge(var.tags, {
+    app         = var.app_name
+    environment = var.environment
+    managed_by  = "terraform"
+  })
+}
+
+# validation for a built value goes on the resource, not the local
+lifecycle {
+  precondition {
+    condition     = can(regex("^[a-z0-9]{3,24}$", local.storage_account_name))
+    error_message = "Built storage account name is invalid: must be 3-24 lowercase letters or digits."
+  }
+}</code></pre>
+<pre><code>"local.resource_group_name" | terraform console   # check built names BEFORE planning
+"local.common_tags"         | terraform console
+terraform plan -out tfplan                        # expect only ~ (tags). Any -/+ = a built name is wrong
+terraform plan -var="app_name=orders"             # one input renames everything: forces replacement</code></pre>
+<p>Step 5 originally used <code>rg-${app}-${suffix}</code> (no environment). That was the bug found in step 7; the block above is the fixed version.</p>
+</details>
+
+<details class="raw">
+<summary>A7 - Refactor into a module without destroying anything (step 6)</summary>
+<pre><code># root main.tf
+module "foundation" {
+  source      = "../modules/app-foundation"
+  app_name    = var.app_name
+  environment = var.environment
+  name_suffix = var.name_suffix
+  location    = var.location
+  tags        = var.tags
+}
+
+# moved.tf
+moved {
+  from = azurerm_resource_group.main
+  to   = module.foundation.azurerm_resource_group.main
+}
+moved {
+  from = azurerm_storage_account.data
+  to   = module.foundation.azurerm_storage_account.data
+}</code></pre>
+<pre><code>terraform init                 # expect: - foundation in ..\modules\app-foundation
+terraform plan                 # WITHOUT moved.tf: 2 to add, 2 to destroy  ("not in configuration") - do not apply
+terraform plan -out tfplan     # WITH moved.tf: "has moved to module.foundation...", 0 to add, 0 to change, 0 to destroy
+terraform apply tfplan         # writes the new addresses into state
+terraform state list           # expect: module.foundation.azurerm_resource_group.main ...
+az resource list --resource-group rg-basiclab-ksa --query "[].{name:name, created:createdTime}" -o table
+                               # proof: original creation time, never recreated</code></pre>
+<p>Keep resource labels (<code>main</code>, <code>data</code>) the same inside the module so only the <code>module.foundation.</code> prefix changes.</p>
+</details>
+
+<details class="raw">
+<summary>A8 - Retire an environment, add dev and test (step 7)</summary>
+<pre><code># retire
+terraform plan -destroy        # expect: 0 to add, 0 to change, 2 to destroy
+terraform destroy              # storage first, then RG (reverse dependency order)
+az storage blob delete --account-name sttfstateksa01 --container-name tfstate `
+  --name azure-platform-basic-lab/infra.tfstate --auth-mode login
+                               # recoverable for 7 days via soft delete
+
+# per environment: the only lines that differ
+# envs/dev/backend.tf    key = "azure-platform-basic-lab/dev.tfstate"
+# envs/test/backend.tf   key = "azure-platform-basic-lab/test.tfstate"
+# envs/dev/main.tf       environment = "dev"   replication_type = "LRS"
+# envs/test/main.tf      environment = "test"  replication_type = "ZRS"
+# module source from envs/X:  source = "../../modules/app-foundation"
+
+Set-Location envs\dev;  terraform init; terraform plan -out tfplan; terraform apply tfplan
+Set-Location ..\test;   terraform init; terraform plan -out tfplan; terraform apply tfplan
+                               # test says 2 to add even though dev exists - its own state is empty
+
+# isolation proof: change dev only
+# dev plan: 0 to add, 2 to change    test plan: No changes.
+az storage blob list --account-name sttfstateksa01 --container-name tfstate --auth-mode login --query "[].name" -o tsv
+# expect: azure-platform-basic-lab/dev.tfstate  and  azure-platform-basic-lab/test.tfstate</code></pre>
+</details>
+
+<details class="raw">
+<summary>A9 - A plan file (possible secret) landed in Git</summary>
+<pre><code># .gitignore - the files were named "tfplan", which *.tfplan does not match
+tfplan
+*.tfplan
+
+# .gitattributes - stop CRLF warnings, Actions runners are Linux
+* text=auto eol=lf
+
+git rm --cached envs/dev/tfplan envs/test/tfplan
+Remove-Item envs/dev/tfplan, envs/test/tfplan
+git add -A; git status         # expect only .gitignore, .gitattributes and the two deletions
+
+# rotate first - this is what actually protects you
+foreach ($e in "dev", "test") {
+  foreach ($k in "primary", "secondary") {
+    az storage account keys renew -g "rg-basiclab-$e-ksa" -n "stbasiclab$($e)ksa01" --key $k -o none
+  }
+}</code></pre>
+<p>Order for any leaked secret: rotate, stop tracking, then decide whether rewriting history is worth it.</p>
+</details>
 </section>
 
 </div>
