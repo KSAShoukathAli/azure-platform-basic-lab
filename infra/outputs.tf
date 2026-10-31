@@ -1,11 +1,11 @@
 output "resource_group_name" {
-  value = azurerm_resource_group.main.name
+  value = module.foundation.resource_group_name
 }
 
 output "storage_account_name" {
-  value = azurerm_storage_account.data.name
+  value = module.foundation.storage_account_name
 }
 
 output "blob_endpoint" {
-  value = azurerm_storage_account.data.primary_blob_endpoint
+  value = module.foundation.blob_endpoint
 }

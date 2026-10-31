@@ -1,5 +1,9 @@
-resource "azurerm_resource_group" "main" {
-  name     = local.resource_group_name
-  location = var.location
-  tags     = local.common_tags
+module "foundation" {
+  source = "../modules/app-foundation"
+
+  app_name    = var.app_name
+  environment = var.environment
+  name_suffix = var.name_suffix
+  location    = var.location
+  tags        = var.tags
 }

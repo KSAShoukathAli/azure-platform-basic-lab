@@ -1,3 +1,9 @@
+resource "azurerm_resource_group" "main" {
+  name     = local.resource_group_name
+  location = var.location
+  tags     = local.common_tags
+}
+
 resource "azurerm_storage_account" "data" {
   name                            = local.storage_account_name
   resource_group_name             = azurerm_resource_group.main.name
