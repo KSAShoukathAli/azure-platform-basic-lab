@@ -2,6 +2,10 @@
 .terraform/
 *.tfstate
 *.tfstate.*
-*.tfplan
 crash.log
+
+# Saved plans contain a state snapshot, which can include secrets
+tfplan
+*.tfplan
+
 # .terraform.lock.hcl IS committed - it pins provider versions
