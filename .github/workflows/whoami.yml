@@ -1,0 +1,39 @@
+# Layer 1 - authentication only.
+# Run manually. Shows the OIDC token GitHub issues to this job, then logs in to Azure
+# with it, then shows which identity Azure gave us and what that identity can see.
+name: whoami
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # allows this job to ask GitHub for an OIDC token
+
+jobs:
+  whoami:
+    runs-on: ubuntu-latest
+    # No "environment:" here. So the token subject ends in ref:refs/heads/<branch>,
+    # and vars.AZURE_CLIENT_ID is the repo-level value: the ci identity.
+    steps:
+      - name: 1 - what GitHub says about this job (token claims)
+        run: |
+          token=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange" | jq -r .value)
+          echo "::add-mask::$token"
+          payload=$(echo "$token" | cut -d. -f2 | tr '_-' '/+')
+          case $(( ${#payload} % 4 )) in 2) payload="$payload==";; 3) payload="$payload=";; esac
+          echo "$payload" | base64 -d | jq '{iss, aud, sub, repository, ref, event_name, environment}'
+
+      - name: 2 - exchange the token with Entra (login as ci)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 3 - who Azure thinks we are
+        run: az account show --query "{subscription:name, signedInAs:user.name, type:user.type}" -o table
+
+      - name: 4 - what this identity can see
+        run: az group list --query "[].name" -o tsv
